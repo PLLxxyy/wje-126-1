@@ -4,9 +4,10 @@ import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// GET /api/orders - list orders with optional status filter
+// GET /api/orders - list orders with optional status and search filters
 router.get('/', (req: AuthRequest, res: Response): void => {
   const status = req.query.status as string;
+  const search = req.query.search as string;
 
   let query = `
     SELECT o.*, u.username as creator_username, u.nickname as creator_nickname,
@@ -17,9 +18,21 @@ router.get('/', (req: AuthRequest, res: Response): void => {
   `;
 
   const params: string[] = [];
+  const whereClauses: string[] = [];
+
   if (status === 'open' || status === 'completed') {
-    query += ' WHERE o.status = ?';
+    whereClauses.push('o.status = ?');
     params.push(status);
+  }
+
+  if (search && search.trim()) {
+    whereClauses.push('(o.shop_name LIKE ? OR o.title LIKE ?)');
+    const searchTerm = `%${search.trim()}%`;
+    params.push(searchTerm, searchTerm);
+  }
+
+  if (whereClauses.length > 0) {
+    query += ' WHERE ' + whereClauses.join(' AND ');
   }
 
   query += status === 'open' ? ' ORDER BY o.deadline ASC' : ' ORDER BY o.completed_at DESC, o.created_at DESC';

@@ -76,6 +76,30 @@ const s = {
   loading: {
     textAlign: 'center' as const, padding: 40, color: '#999',
   },
+  searchBar: {
+    display: 'flex',
+    gap: 8,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    padding: '10px 14px',
+    border: '1px solid #ddd',
+    borderRadius: 8,
+    fontSize: 14,
+    outline: 'none',
+    transition: 'border-color 0.2s',
+  },
+  searchBtn: {
+    padding: '10px 20px',
+    background: '#1a73e8',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
 };
 
 function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
@@ -123,14 +147,31 @@ export default function Home() {
   const [tab, setTab] = useState<'open' | 'completed'>('open');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/orders?status=${tab}`)
+    const params = new URLSearchParams();
+    params.set('status', tab);
+    if (searchKeyword.trim()) {
+      params.set('search', searchKeyword.trim());
+    }
+    api.get(`/orders?${params.toString()}`)
       .then((res) => setOrders(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tab]);
+  }, [tab, searchKeyword]);
+
+  const handleSearch = () => {
+    setSearchKeyword(searchInput);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   return React.createElement(React.Fragment, null,
     React.createElement(Header, null),
@@ -143,6 +184,26 @@ export default function Home() {
             onClick: () => navigate('/create'),
           }, '+ 发起拼单'),
         ),
+      ),
+      React.createElement('div', { style: s.searchBar },
+        React.createElement('input', {
+          style: s.searchInput,
+          type: 'text',
+          placeholder: '搜索店铺名或拼单标题...',
+          value: searchInput,
+          onChange: (e: React.ChangeEvent<HTMLInputElement>) => setSearchInput(e.target.value),
+          onKeyDown: handleKeyDown,
+          onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+            (e.target as HTMLInputElement).style.borderColor = '#1a73e8';
+          },
+          onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+            (e.target as HTMLInputElement).style.borderColor = '#ddd';
+          },
+        }),
+        React.createElement('button', {
+          style: s.searchBtn,
+          onClick: handleSearch,
+        }, '\u{1F50D} 搜索'),
       ),
       React.createElement('div', { style: s.tabs },
         React.createElement('button', {
@@ -158,10 +219,14 @@ export default function Home() {
         ? React.createElement('div', { style: s.loading }, '加载中...')
         : orders.length === 0
           ? React.createElement('div', { style: s.empty },
-              React.createElement('div', { style: s.emptyIcon }, tab === 'open' ? '\u{1F4ED}' : '\u{1F4CB}'),
-              React.createElement('div', null, tab === 'open' ? '暂无进行中的拼单' : '暂无已结束的拼单'),
+              React.createElement('div', { style: s.emptyIcon }, searchKeyword ? '\u{1F50D}' : (tab === 'open' ? '\u{1F4ED}' : '\u{1F4CB}')),
+              React.createElement('div', null,
+                searchKeyword
+                  ? `没有找到与 "${searchKeyword}" 相关的拼单`
+                  : (tab === 'open' ? '暂无进行中的拼单' : '暂无已结束的拼单')
+              ),
               React.createElement('div', { style: { marginTop: 8, fontSize: 13 } },
-                tab === 'open' ? '点击上方按钮发起第一个拼单吧！' : ''
+                searchKeyword ? '试试其他关键词吧' : (tab === 'open' ? '点击上方按钮发起第一个拼单吧！' : '')
               ),
             )
           : React.createElement('div', null,
