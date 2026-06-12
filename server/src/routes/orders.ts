@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import db from '../db';
 import { authMiddleware, AuthRequest } from '../middleware/auth';
+import { buildOrderListQuery } from '../orderQueries';
 
 const router = Router();
 
@@ -9,34 +10,7 @@ router.get('/', (req: AuthRequest, res: Response): void => {
   const status = req.query.status as string;
   const search = req.query.search as string;
 
-  let query = `
-    SELECT o.*, u.username as creator_username, u.nickname as creator_nickname,
-      (SELECT COUNT(DISTINCT user_id) FROM order_items WHERE order_id = o.id) as participant_count,
-      (SELECT COALESCE(SUM(amount), 0) FROM order_items WHERE order_id = o.id) as current_total
-    FROM orders o
-    JOIN users u ON o.creator_id = u.id
-  `;
-
-  const params: string[] = [];
-  const whereClauses: string[] = [];
-
-  if (status === 'open' || status === 'completed') {
-    whereClauses.push('o.status = ?');
-    params.push(status);
-  }
-
-  if (search && search.trim()) {
-    whereClauses.push('(o.shop_name LIKE ? OR o.title LIKE ?)');
-    const searchTerm = `%${search.trim()}%`;
-    params.push(searchTerm, searchTerm);
-  }
-
-  if (whereClauses.length > 0) {
-    query += ' WHERE ' + whereClauses.join(' AND ');
-  }
-
-  query += status === 'open' ? ' ORDER BY o.deadline ASC' : ' ORDER BY o.completed_at DESC, o.created_at DESC';
-
+  const { query, params } = buildOrderListQuery(status, search);
   const orders = db.prepare(query).all(...params);
   res.json(orders);
 });

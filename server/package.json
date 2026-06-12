@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "seed": "ts-node --transpile-only src/seed.ts"
+    "seed": "ts-node --transpile-only src/seed.ts",
+    "test": "ts-node --transpile-only src/__tests__/orders-search.test.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

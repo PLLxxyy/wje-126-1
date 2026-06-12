@@ -100,10 +100,26 @@ const s = {
     fontWeight: 600,
     cursor: 'pointer',
   },
+  searchResultsHeader: {
+    marginBottom: 16,
+    padding: '12px 16px',
+    background: '#f0f7ff',
+    borderRadius: 8,
+    borderLeft: '3px solid #1a73e8',
+  },
+  searchResultsTitle: {
+    fontSize: 14,
+    color: '#1a73e8',
+    fontWeight: 600,
+  },
 };
 
-function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
+function OrderCard({ order, onClick, highlightStatus = false }: { order: Order; onClick: () => void; highlightStatus?: boolean }) {
   const { text, expired } = useCountdown(order.deadline);
+
+  const tagStyle = highlightStatus
+    ? { ...s.tag(order.status), padding: '4px 12px', fontSize: 13, fontWeight: 600 }
+    : s.tag(order.status);
 
   return React.createElement('div', {
     style: s.card,
@@ -119,7 +135,7 @@ function OrderCard({ order, onClick }: { order: Order; onClick: () => void }) {
   },
     React.createElement('div', { style: s.cardTop },
       React.createElement('span', { style: s.cardTitle }, order.title),
-      React.createElement('span', { style: s.tag(order.status) },
+      React.createElement('span', { style: tagStyle },
         order.status === 'open' ? '进行中' : '已完成'
       ),
     ),
@@ -153,7 +169,9 @@ export default function Home() {
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams();
-    params.set('status', tab);
+    if (!searchKeyword.trim()) {
+      params.set('status', tab);
+    }
     if (searchKeyword.trim()) {
       params.set('search', searchKeyword.trim());
     }
@@ -204,29 +222,46 @@ export default function Home() {
           style: s.searchBtn,
           onClick: handleSearch,
         }, '\u{1F50D} 搜索'),
+        searchKeyword.trim() && React.createElement('button', {
+          style: { ...s.searchBtn, background: '#757575' },
+          onClick: () => {
+            setSearchKeyword('');
+            setSearchInput('');
+          },
+        }, '\u{2715} 清除'),
       ),
-      React.createElement('div', { style: s.tabs },
-        React.createElement('button', {
-          style: s.tab(tab === 'open'),
-          onClick: () => setTab('open'),
-        }, '\u{1F7E2} 进行中'),
-        React.createElement('button', {
-          style: s.tab(tab === 'completed'),
-          onClick: () => setTab('completed'),
-        }, '✅ 已结束'),
-      ),
+      searchKeyword.trim()
+        ? React.createElement('div', { style: s.searchResultsHeader },
+            React.createElement('span', { style: s.searchResultsTitle },
+              '\u{1F50D} 搜索 "', searchKeyword, '" 共 ', orders.length, ' 条结果'
+            ),
+          )
+        : React.createElement('div', { style: s.tabs },
+            React.createElement('button', {
+              style: s.tab(tab === 'open'),
+              onClick: () => setTab('open'),
+            }, '\u{1F7E2} 进行中'),
+            React.createElement('button', {
+              style: s.tab(tab === 'completed'),
+              onClick: () => setTab('completed'),
+            }, '✅ 已结束'),
+          ),
       loading
         ? React.createElement('div', { style: s.loading }, '加载中...')
         : orders.length === 0
           ? React.createElement('div', { style: s.empty },
-              React.createElement('div', { style: s.emptyIcon }, searchKeyword ? '\u{1F50D}' : (tab === 'open' ? '\u{1F4ED}' : '\u{1F4CB}')),
+              React.createElement('div', { style: s.emptyIcon },
+                searchKeyword.trim() ? '\u{1F50D}' : (tab === 'open' ? '\u{1F4ED}' : '\u{1F4CB}')
+              ),
               React.createElement('div', null,
-                searchKeyword
+                searchKeyword.trim()
                   ? `没有找到与 "${searchKeyword}" 相关的拼单`
                   : (tab === 'open' ? '暂无进行中的拼单' : '暂无已结束的拼单')
               ),
               React.createElement('div', { style: { marginTop: 8, fontSize: 13 } },
-                searchKeyword ? '试试其他关键词吧' : (tab === 'open' ? '点击上方按钮发起第一个拼单吧！' : '')
+                searchKeyword.trim()
+                  ? '试试其他关键词，或点击"清除"返回浏览'
+                  : (tab === 'open' ? '点击上方按钮发起第一个拼单吧！' : '')
               ),
             )
           : React.createElement('div', null,
@@ -235,6 +270,7 @@ export default function Home() {
                   key: order.id,
                   order,
                   onClick: () => navigate(`/order/${order.id}`),
+                  highlightStatus: !!searchKeyword.trim(),
                 })
               )
             )
